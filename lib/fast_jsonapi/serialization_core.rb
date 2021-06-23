@@ -71,7 +71,9 @@ module FastJsonapi
           param = [record, cache_opts, klass]
           ::BatchLoader.for(param).batch do |batch_params, loader|
             cache_results = cache_store_instance.fetch(batch_params)
-              .map { |str| JSON.parse(str, symbolize_names: true) }.group_by { |h| [h[:id], h[:type]] }.transform_values(&:first)
+              .map { |str| JSON.parse(str, symbolize_names: true) }
+              .group_by { |h| [h[:id], h[:type]] }
+              .transform_values(&:first)
             batch_params.each do |batch_param|
               _record = batch_param.first
               _cache_opts = batch_param.second
@@ -84,9 +86,9 @@ module FastJsonapi
                   temp_hash[:relationships] = _klass.relationships_hash(_record, nil, fieldset, includes_list, params) if _klass.relationships_to_serialize.present?
                   temp_hash[:links] = _klass.links_hash(_record, params) if _klass.data_links.present?
                   temp_hash[:meta] = _klass.meta_hash(_record, params) if _klass.meta_to_serialize.present?
-                  Oj.dump(temp_hash, mode: :compat)
+                  temp_hash.to_json
                 end
-                record_h = Oj.load(temp_json, symbolize_keys: true)
+                record_h = JSON.parse(temp_json, symbolize_names: true)
               end
               loader.call(batch_param, record_h)
             end
@@ -114,20 +116,13 @@ module FastJsonapi
       # @return [Hash] processed options hash
       # rubocop:disable Lint/UnusedMethodArgument
       def record_cache_options(options, fieldset, includes_list, params)
-        return options unless fieldset
-
         options = options ? options.dup : {}
         options[:namespace] ||= 'jsonapi-serializer'
 
-        fieldset_key = fieldset.join('_')
+        unique_key = [fieldset, params].to_s
+        unique_key = Digest::SHA1.hexdigest(unique_key)
 
-        # Use a fixed-length fieldset key if the current length is more than
-        # the length of a SHA1 digest
-        if fieldset_key.length > 40
-          fieldset_key = Digest::SHA1.hexdigest(fieldset_key)
-        end
-
-        options[:namespace] = "#{options[:namespace]}-fieldset:#{fieldset_key}"
+        options[:namespace] = [options[:namespace], "uniq_hash:#{unique_key}"].join(':')
         options
       end
       # rubocop:enable Lint/UnusedMethodArgument
