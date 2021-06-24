@@ -159,6 +159,7 @@ module FastJsonapi
         end
 
         options[:namespace] ||= 'jsonapi-serializer'
+        options
 
         # intend to not support fieldset to simplify batch query size
         # and fieldset is not been used in chowbus codebase
