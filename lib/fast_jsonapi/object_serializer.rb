@@ -62,7 +62,7 @@ module FastJsonapi
       fieldset = @fieldsets[self.class.record_type.to_sym]
       @resource.each do |record|
         data << self.class.record_hash(record, fieldset, @includes, @params)
-        included.concat(self.class.get_included_records(record, @includes, @known_included_objects, @fieldsets, @params)) if @includes.present?
+        included.concat self.class.get_included_records(record, @includes, @known_included_objects, @fieldsets, @params) if @includes.present?
       end
 
       serializable_hash[:data] = data
@@ -119,6 +119,8 @@ module FastJsonapi
         super(subclass)
         subclass.attributes_to_serialize = attributes_to_serialize.dup if attributes_to_serialize.present?
         subclass.relationships_to_serialize = relationships_to_serialize.dup if relationships_to_serialize.present?
+        subclass.cachable_relationships_to_serialize = cachable_relationships_to_serialize.dup if cachable_relationships_to_serialize.present?
+        subclass.uncachable_relationships_to_serialize = uncachable_relationships_to_serialize.dup if uncachable_relationships_to_serialize.present?
         subclass.transform_method = transform_method
         subclass.data_links = data_links.dup if data_links.present?
         subclass.cache_store_instance = cache_store_instance
@@ -221,7 +223,16 @@ module FastJsonapi
 
       def add_relationship(relationship)
         self.relationships_to_serialize = {} if relationships_to_serialize.nil?
+        self.cachable_relationships_to_serialize = {} if cachable_relationships_to_serialize.nil?
+        self.uncachable_relationships_to_serialize = {} if uncachable_relationships_to_serialize.nil?
 
+        # TODO: Remove this undocumented option.
+        #   Delegate the caching to the serializer exclusively.
+        if relationship.cached
+          cachable_relationships_to_serialize[relationship.name] = relationship
+        else
+          uncachable_relationships_to_serialize[relationship.name] = relationship
+        end
         relationships_to_serialize[relationship.name] = relationship
       end
 
