@@ -64,33 +64,57 @@ module FastJsonapi
         FastJsonapi.call_proc(meta_to_serialize, record, params)
       end
 
+      def generate_cache_key(record, namespace)
+        # using ':' as delimiters
+        [
+          namespace,
+          record.cache_key
+        ].join(':')
+      end
+
       def record_hash(record, fieldset, includes_list, params = {})
         if cache_store_instance
-          cache_opts = record_cache_options(cache_store_options, fieldset, includes_list, params)
-          klass = self.name
-          param = [record, cache_opts, klass]
+          cache_opts = record_cache_options(record, cache_store_options, fieldset, includes_list, params)
+          name_space = cache_opts.delete(:namespace)
+          cache_key = generate_cache_key(record, name_space)
+          klass = self
+          param = {
+            cache_key: cache_key,
+            cache_opts: cache_opts,
+            record: record,
+            klass: klass,
+            params: params
+          }
           ::BatchLoader.for(param).batch do |batch_params, loader|
-            cache_results = cache_store_instance.fetch(batch_params)
-              .map { |str| JSON.parse(str, symbolize_names: true) }
-              .group_by { |h| [h[:id], h[:type]] }
-              .transform_values(&:first)
-            batch_params.each do |batch_param|
-              _record = batch_param.first
-              _cache_opts = batch_param.second
-              _klass = Object.const_get(batch_param.last)
-              record_h = cache_results[[_record.id.to_s, _record.class.model_name.name.underscore]]
-              if record_h.nil?
-                temp_json = _klass.cache_store_instance.cache(_record, _cache_opts) do
-                  temp_hash = _klass.id_hash(_klass.id_from_record(_record, params), _klass.record_type, true)
-                  temp_hash[:attributes] = _klass.attributes_hash(_record, fieldset, params) if _klass.attributes_to_serialize.present?
-                  temp_hash[:relationships] = _klass.relationships_hash(_record, nil, fieldset, includes_list, params) if _klass.relationships_to_serialize.present?
-                  temp_hash[:links] = _klass.links_hash(_record, params) if _klass.data_links.present?
-                  temp_hash[:meta] = _klass.meta_hash(_record, params) if _klass.meta_to_serialize.present?
-                  temp_hash.to_json
-                end
-                record_h = JSON.parse(temp_json, symbolize_names: true)
+            cache_keys = batch_params.map { |h| h[:cache_key] }
+            # load the cached value from cache store
+            cache_hits = cache_store_instance.read_multi(cache_keys)
+
+            # for not cached record, group it by cache options
+            uncached_by_opts = batch_params
+              .reject { |h| cache_hits.keys.include? h[:cache_key] }
+              .group_by { |h| h[:cache_opts] }
+            # replace grouped batch param with Hash: { cache_key_1 => record_hash_1, ... }
+            uncached_by_opts.transform_values! do |arr|
+              arr.each_with_object({}) do |b_param, record_hash_pairs|
+                temp_hash = b_param[:klass].id_hash(b_param[:klass].id_from_record(b_param[:record], b_param[:params]), b_param[:klass].record_type, true)
+                temp_hash[:attributes] = b_param[:klass].attributes_hash(b_param[:record], fieldset, b_param[:params]) if b_param[:klass].attributes_to_serialize.present?
+                temp_hash[:relationships] = b_param[:klass].relationships_hash(b_param[:record], nil, fieldset, includes_list, b_param[:params]) if b_param[:klass].relationships_to_serialize.present?
+                temp_hash[:links] = b_param[:klass].links_hash(b_param[:record], b_param[:params]) if b_param[:klass].data_links.present?
+                temp_hash[:meta] = b_param[:klass].meta_hash(b_param[:record], b_param[:params]) if b_param[:klass].meta_to_serialize.present?
+                record_hash_pairs[b_param[:cache_key]] = temp_hash
               end
-              loader.call(batch_param, record_h)
+            end
+            # cache the uncached record
+            uncached_by_opts.each do |opts, record_hash_pairs|
+              cache_store_instance.write_multi(record_hash_pairs, opts)
+            end
+            # gathering all cache_key => record_hash pairs
+            record_hash_pairs = uncached_by_opts.values.reduce({}, :merge).merge!(cache_hits)
+
+            # push all record_hash to batch loader context
+            batch_params.each do |b_param|
+              loader.call(b_param, record_hash_pairs[b_param[:cache_key]])
             end
           end
         else
@@ -108,6 +132,8 @@ module FastJsonapi
       # If a fieldset is specified, it modifies the namespace to include the
       # fields from the fieldset.
       #
+      # Allow namespace passed in a proc to generate unique key base on dynamic params
+      #
       # @param options [Hash] default cache options
       # @param fieldset [Array, nil] passed fieldset values
       # @param includes_list [Array, nil] passed included values
@@ -115,14 +141,25 @@ module FastJsonapi
       #
       # @return [Hash] processed options hash
       # rubocop:disable Lint/UnusedMethodArgument
-      def record_cache_options(options, fieldset, includes_list, params)
+      def record_cache_options(record, options, fieldset, includes_list, params)
         options = options ? options.dup : {}
+
+        if options[:namespace].is_a?(Proc)
+          options[:namespace] = FastJsonapi.call_proc(options[:namespace], record, params)
+        end
+
         options[:namespace] ||= 'jsonapi-serializer'
 
-        unique_key = [fieldset, params].to_s
-        unique_key = Digest::SHA1.hexdigest(unique_key)
+        return options unless fieldset
 
-        options[:namespace] = [options[:namespace], "uniq_hash:#{unique_key}"].join(':')
+        # Use a fixed-length fieldset key if the current length is more than
+        # the length of a SHA1 digest
+        fieldset_key = fieldset.join('-')
+        if fieldset_key.length > 40
+          fieldset_key = Digest::SHA1.hexdigest(fieldset_key)
+        end
+
+        options[:namespace] = [options[:namespace], fieldset_key].join(':')
         options
       end
       # rubocop:enable Lint/UnusedMethodArgument
