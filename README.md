@@ -752,7 +752,7 @@ See [docs](https://github.com/jsonapi-serializer/jsonapi-serializer#caching).
 + cache_options store: Rails.cache, namespace: 'jsonapi-serializer', expires_in: 1.hour
 ```
 
-# Chowbus Domain modification
+# Chowbus Domain Modification
 
 ## Caching
 
@@ -761,7 +761,7 @@ It will boost performance 2, 3 times
 
 :exclamation::exclamation::exclamation: Ceavet
 * the original sprease fieldset support is removed to boots performance and simple implementation
-* the meta attribute on relationships is cached, so please do not put time sensitive content in that, if you really need to, you can put it record meta field
+* the meta attribute on relationships is cached, so please do not put time sensitive content in that, if you really need to, you can put it data meta field
 * all the record need to support `#cache_key` method to properly generate cache key
 
 ### Namespace base on params
