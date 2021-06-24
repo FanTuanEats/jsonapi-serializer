@@ -112,8 +112,8 @@ module FastJsonapi
               end
             end
             # cache the uncached record
-            uncached_by_opts.each do |cache_opts, record_hashes_by_cache_key|
-              cache_store_instance.write_multi(record_hashes_by_cache_key, cache_opts)
+            uncached_by_opts.each do |cache_options, record_hashes_by_cache_key|
+              cache_store_instance.write_multi(record_hashes_by_cache_key, cache_options)
             end
             # gathering all cache_key => record_hash pairs
             record_hashes_by_cache_key = uncached_by_opts.values.reduce({}, :merge).merge!(cache_hits)
