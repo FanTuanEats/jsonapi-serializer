@@ -34,11 +34,13 @@ module FastJsonapi
     end
 
     def serializable_hash
-      if self.class.is_collection?(@resource, @is_collection)
-        return hash_for_collection
+      result = if self.class.is_collection?(@resource, @is_collection)
+        hash_for_collection
+      else
+        hash_for_one_record
       end
-
-      hash_for_one_record
+      return result.as_json if self.class.cache_store_instance
+      result
     end
     alias to_hash serializable_hash
 

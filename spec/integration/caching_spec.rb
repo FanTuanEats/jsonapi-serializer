@@ -20,7 +20,7 @@ RSpec.describe JSONAPI::Serializer do
 
       Cached::ActorSerializer.new(
         [actor, actor], include: ['played_movies', 'played_movies.owner']
-      ).serializable_hash.as_json
+      ).serializable_hash
 
       expect(cache_store.delete("test-#{actor.cache_key}")).to be(true)
       expect(cache_store.delete("test-#{actor.movies[0].cache_key}")).to be(true)
@@ -37,7 +37,7 @@ RSpec.describe JSONAPI::Serializer do
           [actor, actor],
           include: ['played_movies', 'played_movies.owner'],
           params: { actor_gender: :male }
-        ).serializable_hash.as_json
+        ).serializable_hash
 
         expect(cache_store.delete("male-#{actor.cache_key}")).to be(true)
         expect(cache_store.delete("test-#{actor.movies[0].cache_key}")).to be(true)
