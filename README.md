@@ -757,12 +757,13 @@ See [docs](https://github.com/jsonapi-serializer/jsonapi-serializer#caching).
 ## Caching
 
 Utilize the batch loader to implement mult_w/r of caching, it resolve the N+1 on caching redis trips.
-It will boost performance 2, 3 times
+It will boost performance more better than previous multiple round trips to cache store.
 
 :exclamation::exclamation::exclamation: Ceavet
 * the original sprease fieldset support is removed to boots performance and simple implementation
 * the meta attribute on relationships is cached, so please do not put time sensitive content in that, if you really need to, you can put it data meta field
 * all the record need to support `#cache_key` method to properly generate cache key
+* fieldset support is temp disable, looking forward to add it back really soon
 
 ### Namespace base on params
 cache namespace could be dynamically generated base on serializer params

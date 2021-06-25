@@ -15,6 +15,8 @@ RSpec.describe JSONAPI::Serializer do
     it do
       cache_store.clear
       expect(cache_store.delete("test-#{actor.cache_key}")).to be(false)
+      expect(cache_store).to receive(:read_multi).once.and_call_original
+      expect(cache_store).to receive(:write_multi).once.and_call_original
 
       Cached::ActorSerializer.new(
         [actor, actor], include: ['played_movies', 'played_movies.owner']

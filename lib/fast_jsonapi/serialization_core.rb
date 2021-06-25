@@ -85,7 +85,7 @@ module FastJsonapi
             klass: klass,
             params: params
           }
-          ::BatchLoader.for(fetch_query).batch do |batch_params, loader|
+          ::BatchLoader.for(fetch_query).batch(replace_methods: false) do |batch_params, loader|
             cache_keys = batch_params.map { |h| h[:cache_key] }
             # load the cached value from cache store
             cache_hits = cache_store_instance.read_multi(cache_keys)
@@ -161,8 +161,8 @@ module FastJsonapi
         options[:namespace] ||= 'jsonapi-serializer'
         options
 
-        # intend to not support fieldset to simplify batch query size
-        # and fieldset is not been used in chowbus codebase
+        # temp disable fieldset support to minimum change scope
+        # TODO: add fieldset support back and verify behavior
         # return options unless fieldset
 
         # fieldset_key = fieldset.join('_')
