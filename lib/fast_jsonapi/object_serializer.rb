@@ -39,7 +39,7 @@ module FastJsonapi
       else
         hash_for_one_record
       end
-      return result.as_json if self.class.cache_store_instance
+      return deep_symbolize_keys(result) if self.class.cache_store_instance
       result
     end
     alias to_hash serializable_hash
@@ -104,6 +104,19 @@ module FastJsonapi
         collection.map { |i| deep_symbolize(i) }
       else
         collection.to_sym
+      end
+    end
+
+    def deep_symbolize_keys(collection)
+      if collection.is_a? Hash
+        collection.each_with_object({}) do |(k, v), hsh|
+          hsh[k.to_sym] = deep_symbolize_keys(v)
+        end
+      elsif collection.is_a? Array
+        collection.map { |i| deep_symbolize_keys(i) }
+        collection
+      else
+        collection
       end
     end
 

@@ -85,7 +85,7 @@ module FastJsonapi
             klass: klass,
             params: params
           }
-          ::BatchLoader.for(fetch_query).batch(replace_methods: false) do |batch_params, loader|
+          BatchLoader.for(fetch_query).batch(replace_methods: false) do |batch_params, loader|
             cache_keys = batch_params.map { |h| h[:cache_key] }
             # load the cached value from cache store
             cache_hits = cache_store_instance.read_multi(cache_keys)
