@@ -100,7 +100,7 @@ module FastJsonapi
             #   .... # different cache options
             # }
             uncached_by_opts = batch_params
-              .reject { |h| cache_hits.keys.include? h[:cache_key] }
+              .reject { |h| cache_hits[h[:cache_key]] }
               .group_by { |h| h[:cache_opts] }
             uncached_by_opts.transform_values! do |arr|
               arr.each_with_object({}) do |b_param, record_hashes_by_cache_key|
