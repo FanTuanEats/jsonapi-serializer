@@ -73,6 +73,14 @@ module Cached
       store: ActiveSupport::Cache::MemoryStore.new,
       namespace: 'test'
     )
+
+    attribute :nest_batch do |object|
+      BatchLoader.for(object).batch(replace_methods: false) do |objects, loader|
+        objects.each do |obj|
+          loader.call(obj, obj.uid)
+        end
+      end
+    end
   end
 
   class WithParamNamespaceActorSerializer < ::ActorSerializer

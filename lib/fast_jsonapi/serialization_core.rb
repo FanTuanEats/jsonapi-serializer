@@ -113,10 +113,13 @@ module FastJsonapi
             end
             # cache the uncached record
             uncached_by_opts.each do |cache_options, record_hashes_by_cache_key|
-              cache_store_instance.write_multi(record_hashes_by_cache_key, cache_options)
+              cache_store_instance.write_multi(
+                deep_sync(record_hashes_by_cache_key),
+                cache_options
+              )
             end
             # gathering all cache_key => record_hash pairs
-            record_hashes_by_cache_key = uncached_by_opts.values.reduce({}, :merge).merge!(cache_hits)
+            record_hashes_by_cache_key = uncached_by_opts.values.reduce({}, :merge!).merge!(cache_hits)
 
             # push all record_hash to batch loader context
             batch_params.each do |b_param|
@@ -133,6 +136,19 @@ module FastJsonapi
           record_hash[:links] = links_hash(record, params) if data_links.present?
           record_hash[:meta] = meta_hash(record, params) if meta_to_serialize.present?
           record_hash
+        end
+      end
+
+      # manually sync the nested batchloader instances
+      def deep_sync(collection)
+        if collection.is_a? Hash
+          collection.each_with_object({}) do |(k, v), hsh|
+            hsh[k] = deep_sync(v)
+          end
+        elsif collection.is_a? Array
+          collection.map { |i| deep_sync(i) }
+        else
+          collection.respond_to?(:__sync) ? collection.__sync : collection
         end
       end
 
