@@ -114,6 +114,8 @@ module FastJsonapi
             # cache the uncached record
             uncached_by_opts.each do |cache_options, record_hashes_by_cache_key|
               cache_store_instance.write_multi(
+                # manually sync the record hashes in case record having batch loaded attributes 
+                # which is not compatiable with rails native cache store Marshal serialization
                 deep_sync(record_hashes_by_cache_key),
                 cache_options
               )
