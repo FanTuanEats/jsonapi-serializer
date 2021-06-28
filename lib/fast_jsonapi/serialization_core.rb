@@ -75,8 +75,7 @@ module FastJsonapi
       def record_hash(record, fieldset, includes_list, params = {})
         # always use cache for performance testing in staigng-01
         if ENV.fetch('UTIL_CACHE_STORE', false) || self == Api::V2::ActionTextSerializer
-        # if cache_store_instnace
-          cache_store_instnace = Rails.cache
+        # if cache_store_instance
           cache_opts = record_cache_options(record, cache_store_options, fieldset, includes_list, params)
           name_space = cache_opts.delete(:namespace)
           cache_key = generate_cache_key(record, name_space)
@@ -91,7 +90,7 @@ module FastJsonapi
           BatchLoader.for(fetch_query).batch(replace_methods: false) do |batch_params, loader|
             cache_keys = batch_params.map { |h| h[:cache_key] }
             # load the cached value from cache store
-            cache_hits = cache_store_instance.read_multi(cache_keys)
+            cache_hits = cache_store_instance.read_multi(*cache_keys)
 
             # for not cached record, group it by cache options
             # {
