@@ -76,6 +76,7 @@ module FastJsonapi
         # always use cache for performance testing in staigng-01
         if ENV.fetch('UTIL_CACHE_STORE', false) || self == Api::V2::ActionTextSerializer
         # if cache_store_instance
+          cache_store_instance ||= Rails.cache
           cache_opts = record_cache_options(record, cache_store_options, fieldset, includes_list, params)
           name_space = cache_opts.delete(:namespace)
           cache_key = generate_cache_key(record, name_space)
