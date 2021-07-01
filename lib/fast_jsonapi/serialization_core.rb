@@ -168,7 +168,11 @@ module FastJsonapi
         elsif collection.is_a? Array
           collection.map { |i| deep_sync(i) }
         else
-          collection.respond_to?(:__sync) ? collection.__sync : collection
+          if collection.respond_to?(:__sync)
+            Datadog.tracer.trace('batchloader.__sync', resource: 'CachedHashEvaluation') { collection.__sync }
+          else
+            collection
+          end
         end
       end
 

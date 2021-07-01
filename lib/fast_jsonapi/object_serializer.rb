@@ -39,7 +39,9 @@ module FastJsonapi
       else
         hash_for_one_record
       end
-      return self.class.deep_sync(result) if self.class.cache_store_instance
+      Datadog.tracer.trace('#serializable_hash-deep_sync', resource: 'CachedHashEvaluation') do
+        result = self.class.deep_sync(result) if self.class.cache_store_instance
+      end
       result
     end
     alias to_hash serializable_hash
