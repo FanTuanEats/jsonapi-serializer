@@ -169,7 +169,7 @@ module FastJsonapi
           collection.map { |i| deep_sync(i) }
         else
           if collection.respond_to?(:__sync)
-            Datadog.tracer.trace('batchloader.__sync', resource: 'CachedHashEvaluation') { collection.__sync }
+            Datadog.tracer.trace('sync', resource: 'CachedHashEvaluation') { collection.__sync }
           else
             collection
           end
