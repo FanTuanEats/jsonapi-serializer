@@ -101,18 +101,27 @@ module FastJsonapi
             #   ],
             #   .... # different cache options
             # }
-            uncached_by_opts = batch_params
-              .reject { |h| cache_hits[h[:cache_key]] }
-              .group_by { |h| h[:cache_opts] }
-            uncached_by_opts.transform_values! do |arr|
-              arr.each_with_object({}) do |b_param, record_hashes_by_cache_key|
-                record_hash = b_param[:klass].id_hash(b_param[:klass].id_from_record(b_param[:record], b_param[:params]), b_param[:klass].record_type, true)
-                record_hash[:attributes] = b_param[:klass].attributes_hash(b_param[:record], fieldset, b_param[:params]) if b_param[:klass].attributes_to_serialize.present?
-                record_hash[:relationships] = b_param[:klass].relationships_hash(b_param[:record], nil, fieldset, includes_list, b_param[:params]) if b_param[:klass].relationships_to_serialize.present?
-                record_hash[:links] = b_param[:klass].links_hash(b_param[:record], b_param[:params]) if b_param[:klass].data_links.present?
-                record_hashes_by_cache_key[b_param[:cache_key]] = record_hash
+            uncached_by_opts = nil
+            Datadog.tracer.trace('uncached_by_opts', resource: 'CacheSerilization') do
+              uncached_by_opts = batch_params
+                .reject { |h| cache_hits[h[:cache_key]] }
+                .group_by { |h| h[:cache_opts] }
+            end
+
+            Rails.logger.info('serializer_cache_stats', cache_hits: cache_hits.size, cache_miss: cache_keys.size - cache_hits.size)
+
+            Datadog.tracer.trace('transforming uncached_by_opts', resource: 'CacheSerilization') do
+              uncached_by_opts.transform_values! do |arr|
+                arr.each_with_object({}) do |b_param, record_hashes_by_cache_key|
+                  record_hash = b_param[:klass].id_hash(b_param[:klass].id_from_record(b_param[:record], b_param[:params]), b_param[:klass].record_type, true)
+                  record_hash[:attributes] = b_param[:klass].attributes_hash(b_param[:record], fieldset, b_param[:params]) if b_param[:klass].attributes_to_serialize.present?
+                  record_hash[:relationships] = b_param[:klass].relationships_hash(b_param[:record], nil, fieldset, includes_list, b_param[:params]) if b_param[:klass].relationships_to_serialize.present?
+                  record_hash[:links] = b_param[:klass].links_hash(b_param[:record], b_param[:params]) if b_param[:klass].data_links.present?
+                  record_hashes_by_cache_key[b_param[:cache_key]] = record_hash
+                end
               end
             end
+
             # cache the uncached record
             uncached_by_opts.each do |cache_options, record_hashes_by_cache_key|
               cache_store_instance.write_multi(
@@ -122,15 +131,22 @@ module FastJsonapi
                 cache_options
               )
             end
-            # gathering all cache_key => record_hash pairs
-            record_hashes_by_cache_key = uncached_by_opts.values.reduce({}, :merge!).merge!(cache_hits)
 
-            # push all record_hash to batch loader context
-            batch_params.each do |b_param|
-              record_hash = record_hashes_by_cache_key[b_param[:cache_key]]
-              # evaluate live meta attribute since it's time sensitive
-              record_hash[:meta] = b_param[:klass].meta_hash(b_param[:record], b_param[:params]) if b_param[:klass].meta_to_serialize.present?
-              loader.call(b_param, record_hash)
+            record_hashes_by_cache_key = nil
+            Datadog.tracer.trace('merging record hashes', resource: 'CacheSerilization') do
+              # gathering all cache_key => record_hash pairs
+              record_hashes_by_cache_key = uncached_by_opts.values.reduce({}, :merge!).merge!(cache_hits)
+            end
+
+
+            Datadog.tracer.trace('loading values', resource: 'CacheSerilization') do
+              # push all record_hash to batch loader context
+              batch_params.each do |b_param|
+                record_hash = record_hashes_by_cache_key[b_param[:cache_key]]
+                # evaluate live meta attribute since it's time sensitive
+                record_hash[:meta] = b_param[:klass].meta_hash(b_param[:record], b_param[:params]) if b_param[:klass].meta_to_serialize.present?
+                loader.call(b_param, record_hash)
+              end
             end
           end
         else
