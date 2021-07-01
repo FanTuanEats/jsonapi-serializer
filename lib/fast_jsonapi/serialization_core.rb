@@ -163,7 +163,7 @@ module FastJsonapi
 
       # manually sync the nested batchloader instances
       def deep_sync(collection)
-        Datadog.tracer.trace('dee_sync', resource: 'CacheSerilization') do
+        Datadog.tracer.trace('deep_sync', resource: 'CacheSerialization') do
           if collection.is_a? Hash
             collection.each_with_object({}) do |(k, v), hsh|
               hsh[k] = deep_sync(v)
@@ -171,13 +171,14 @@ module FastJsonapi
           elsif collection.is_a? Array
             collection.map { |i| deep_sync(i) }
           else
-            if collection.respond_to?(:__sync)
-              col_json = collection.to_json
-              Rails.logger.info('start to sync batchloader instance', collection: col_json)
-              Datadog.tracer.trace('sync', resource: 'CachedHashEvaluation') { collection.__sync }
-              Rails.logger.info('finished sync of batchloader instance', collection: col_json)
-            else
-              collection
+            Datadog.tracer.trace('sync_if_condition', resource: 'CachedHashEvaluation') do
+              if collection.respond_to?(:__sync)
+                Rails.logger.info('start to sync batchloader instance')
+                Datadog.tracer.trace('sync', resource: 'CachedHashEvaluation') { collection.__sync }
+                Rails.logger.info('finished sync of batchloader instance')
+              else
+                collection
+              end
             end
           end
         end
