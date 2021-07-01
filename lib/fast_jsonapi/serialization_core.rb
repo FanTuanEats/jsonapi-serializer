@@ -122,14 +122,16 @@ module FastJsonapi
               end
             end
 
-            # cache the uncached record
-            uncached_by_opts.each do |cache_options, record_hashes_by_cache_key|
-              cache_store_instance.write_multi(
-                # manually sync the record hashes in case record having batch loaded attributes 
-                # which is not compatiable with rails native cache store Marshal serialization
-                deep_sync(record_hashes_by_cache_key),
-                cache_options
-              )
+            Datadog.tracer.trace('push cache to redis', resource: 'CacheSerilization') do
+              # cache the uncached record
+              uncached_by_opts.each do |cache_options, record_hashes_by_cache_key|
+                cache_store_instance.write_multi(
+                  # manually sync the record hashes in case record having batch loaded attributes 
+                  # which is not compatiable with rails native cache store Marshal serialization
+                  deep_sync(record_hashes_by_cache_key),
+                  cache_options
+                )
+              end
             end
 
             record_hashes_by_cache_key = nil
@@ -161,17 +163,22 @@ module FastJsonapi
 
       # manually sync the nested batchloader instances
       def deep_sync(collection)
-        if collection.is_a? Hash
-          collection.each_with_object({}) do |(k, v), hsh|
-            hsh[k] = deep_sync(v)
-          end
-        elsif collection.is_a? Array
-          collection.map { |i| deep_sync(i) }
-        else
-          if collection.respond_to?(:__sync)
-            Datadog.tracer.trace('sync', resource: 'CachedHashEvaluation') { collection.__sync }
+        Datadog.tracer.trace('dee_sync', resource: 'CacheSerilization') do
+          if collection.is_a? Hash
+            collection.each_with_object({}) do |(k, v), hsh|
+              hsh[k] = deep_sync(v)
+            end
+          elsif collection.is_a? Array
+            collection.map { |i| deep_sync(i) }
           else
-            collection
+            if collection.respond_to?(:__sync)
+              col_json = collection.to_json
+              Rails.logger.info('start to sync batchloader instance', collection: col_json)
+              Datadog.tracer.trace('sync', resource: 'CachedHashEvaluation') { collection.__sync }
+              Rails.logger.info('finished sync of batchloader instance', collection: col_json)
+            else
+              collection
+            end
           end
         end
       end
