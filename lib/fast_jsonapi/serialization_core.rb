@@ -3,6 +3,7 @@
 require 'active_support/concern'
 require 'digest/sha1'
 require 'batch-loader'
+require 'securerandom'
 
 module FastJsonapi
   MandatoryField = Class.new(StandardError)
@@ -87,7 +88,13 @@ module FastJsonapi
             klass: klass,
             params: params
           }
-          BatchLoader.for(fetch_query).batch(replace_methods: false) do |batch_params, loader|
+          query_key = SecureRandom.uuid
+          Thread.current[:jsonapi_serializer] ||= {}
+          batch_query_store = Thread.current[:jsonapi_serializer]
+          batch_query_store[query_key] = fetch_query
+
+          BatchLoader.for(query_key).batch(replace_methods: false) do |batch_params, loader|
+            batch_params = Thread.current[:jsonapi_serializer].fetch_values(*batch_params)
             cache_keys = batch_params.map { |h| h[:cache_key] }
             # load the cached value from cache store
             cache_hits = cache_store_instance.read_multi(*cache_keys)
