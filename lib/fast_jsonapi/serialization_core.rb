@@ -127,11 +127,10 @@ module FastJsonapi
               uncached_by_opts.each do |cache_options, record_hashes_by_cache_key|
                 # manually sync the record hashes in case record having batch loaded attributes
                 # which is not compatiable with rails native cache store Marshal serialization
-                count_id = SecureRandom.uuid
-                @@sync_count[count_id] = 0
+                Thread.current[:sync_count] = 0
                 cache_store_instance.write_multi(deep_sync(record_hashes_by_cache_key, count_id), cache_options)
-                Rails.logger.info('log replaced object count', repacled_object_count: @@sync_count[count_id])
-                @@sync_count.delete(count_id)
+                Rails.logger.info('log replaced object count', repacled_object_count: Thread.current[:sync_count])
+                Thread.current[:sync_count] = 0
               end
             end
 
@@ -172,7 +171,7 @@ module FastJsonapi
           elsif collection.is_a? Array
             collection.map { |i| deep_sync(i) }
           else
-            @@serializer_sync_count[count_id] += 1
+            Thread.current[:sync_count] += 1
             collection.respond_to?(:__sync) ? collection.__sync : collection
           end
         end

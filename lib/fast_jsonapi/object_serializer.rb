@@ -30,7 +30,6 @@ module FastJsonapi
     def initialize(resource, options = {})
       process_options(options)
 
-      @@sync_count = {}
       @resource = resource
     end
 
