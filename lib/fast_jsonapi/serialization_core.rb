@@ -125,12 +125,13 @@ module FastJsonapi
             Datadog.tracer.trace('push cache to redis', resource: 'CacheSerilization') do
               # cache the uncached record
               uncached_by_opts.each do |cache_options, record_hashes_by_cache_key|
-                cache_store_instance.write_multi(
-                  # manually sync the record hashes in case record having batch loaded attributes 
-                  # which is not compatiable with rails native cache store Marshal serialization
-                  deep_sync(record_hashes_by_cache_key),
-                  cache_options
-                )
+                # manually sync the record hashes in case record having batch loaded attributes
+                # which is not compatiable with rails native cache store Marshal serialization
+                count_id = SecureRandom.uuid
+                @@sync_count[count_id] = 0
+                cache_store_instance.write_multi(deep_sync(record_hashes_by_cache_key, count_id), cache_options)
+                Rails.logger.info('log replaced object count', repacled_object_count: @@sync_count[count_id])
+                @@sync_count.delete(count_id)
               end
             end
 
@@ -162,7 +163,7 @@ module FastJsonapi
       end
 
       # manually sync the nested batchloader instances
-      def deep_sync(collection)
+      def deep_sync(collection, count_id)
         Datadog.tracer.trace('deep_sync', resource: 'CacheSerialization') do
           if collection.is_a? Hash
             collection.each_with_object({}) do |(k, v), hsh|
@@ -171,6 +172,7 @@ module FastJsonapi
           elsif collection.is_a? Array
             collection.map { |i| deep_sync(i) }
           else
+            @@serializer_sync_count[count_id] += 1
             collection.respond_to?(:__sync) ? collection.__sync : collection
           end
         end
