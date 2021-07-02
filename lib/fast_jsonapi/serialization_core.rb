@@ -128,8 +128,8 @@ module FastJsonapi
                 # manually sync the record hashes in case record having batch loaded attributes
                 # which is not compatiable with rails native cache store Marshal serialization
                 Thread.current[:sync_count] = 0
-                cache_store_instance.write_multi(deep_sync(record_hashes_by_cache_key, count_id), cache_options)
-                Rails.logger.info('log replaced object count', repacled_object_count: Thread.current[:sync_count])
+                cache_store_instance.write_multi(deep_sync(record_hashes_by_cache_key), cache_options)
+                Rails.logger.info('log replaced object count', replaced_object_count: Thread.current[:sync_count])
                 Thread.current[:sync_count] = 0
               end
             end
@@ -162,7 +162,7 @@ module FastJsonapi
       end
 
       # manually sync the nested batchloader instances
-      def deep_sync(collection, count_id)
+      def deep_sync(collection)
         Datadog.tracer.trace('deep_sync', resource: 'CacheSerialization') do
           if collection.is_a? Hash
             collection.each_with_object({}) do |(k, v), hsh|
