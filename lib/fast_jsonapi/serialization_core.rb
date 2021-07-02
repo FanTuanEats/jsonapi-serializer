@@ -199,7 +199,7 @@ module FastJsonapi
           options[:namespace] = FastJsonapi.call_proc(options[:namespace], record, params)
         end
 
-        options[:namespace] ||= 'jsonapi-serializer'
+        options[:namespace].prefix('jsonapi-serializer') if options[:namespace].start_with('jsonapi-serializer')
         options
 
         # temp disable fieldset support to minimum change scope
