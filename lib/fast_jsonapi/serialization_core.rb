@@ -81,9 +81,7 @@ module FastJsonapi
           name_space = cache_opts.delete(:namespace)
           cache_key = generate_cache_key(record, name_space)
           klass = self
-          query_id = SecureRandom.uuid
           fetch_query = {
-            query_id: query_id,
             cache_key: cache_key,
             cache_opts: cache_opts,
             record: record,
@@ -91,11 +89,10 @@ module FastJsonapi
             params: params
           }
           Thread.current[:jsonapi_serializer] ||= {}
-          Thread.current[:jsonapi_serializer][fetch_query] = fetch_query
+          Thread.current[:jsonapi_serializer][cache_key] = fetch_query
 
-          BatchLoader.for(query_id).batch(replace_methods: false) do |query_ids, loader|
-            batch_params = Thread.current[:jsonapi_serializer].fetch_values(*query_ids)
-            cache_keys = batch_params.map { |h| h[:cache_key] }
+          BatchLoader.for(cache_key).batch(replace_methods: false) do |cache_keys, loader|
+            batch_params = Thread.current[:jsonapi_serializer].fetch_values(*cache_keys)
             # load the cached value from cache store
             cache_hits = cache_store_instance.read_multi(*cache_keys)
 
@@ -154,7 +151,7 @@ module FastJsonapi
                 record_hash = record_hashes_by_cache_key[b_param[:cache_key]]
                 # evaluate live meta attribute since it's time sensitive
                 record_hash[:meta] = b_param[:klass].meta_hash(b_param[:record], b_param[:params]) if b_param[:klass].meta_to_serialize.present?
-                loader.call(b_param[:query_id], record_hash)
+                loader.call(b_param[:cache_key], record_hash)
               end
             end
           end
@@ -206,7 +203,7 @@ module FastJsonapi
           options[:namespace] = FastJsonapi.call_proc(options[:namespace], record, params)
         end
 
-        options[:namespace].prefix('jsonapi-serializer') if options[:namespace]&.start_with?('jsonapi-serializer')
+        options[:namespace].prefix('j16r-') if options[:namespace]&.start_with?('j16r-')
         options
 
         # temp disable fieldset support to minimum change scope
