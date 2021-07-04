@@ -89,12 +89,11 @@ module FastJsonapi
             params: params
           }
           query_key = SecureRandom.uuid
-          Thread.current[:jsonapi_serializer] ||= {}
-          batch_query_store = Thread.current[:jsonapi_serializer]
-          batch_query_store[query_key] = fetch_query
+          #Thread.current[:jsonapi_serializer] ||= {}
+          #Thread.current[:jsonapi_serializer][query_key] = fetch_query
 
-          BatchLoader.for(query_key).batch(replace_methods: false) do |batch_params, loader|
-            batch_params = Thread.current[:jsonapi_serializer].fetch_values(*batch_params)
+          BatchLoader.for(fetch_query).batch(replace_methods: false) do |batch_params, loader|
+            #batch_params = Thread.current[:jsonapi_serializer].fetch_values(*query_keys)
             cache_keys = batch_params.map { |h| h[:cache_key] }
             # load the cached value from cache store
             cache_hits = cache_store_instance.read_multi(*cache_keys)
@@ -206,7 +205,7 @@ module FastJsonapi
           options[:namespace] = FastJsonapi.call_proc(options[:namespace], record, params)
         end
 
-        options[:namespace].prefix('jsonapi-serializer') if options[:namespace].start_with('jsonapi-serializer')
+        options[:namespace].prefix('jsonapi-serializer') if options[:namespace]&.start_with?('jsonapi-serializer')
         options
 
         # temp disable fieldset support to minimum change scope
