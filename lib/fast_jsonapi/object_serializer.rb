@@ -33,13 +33,20 @@ module FastJsonapi
       @resource = resource
     end
 
-    def serializable_hash
-      result = if self.class.is_collection?(@resource, @is_collection)
-        hash_for_collection
-      else
-        hash_for_one_record
+    def _serializable_hash
+      if self.class.is_collection?(@resource, @is_collection)
+        return hash_for_collection
       end
-      result
+
+      hash_for_one_record
+    end
+
+    def serializable_hash
+      begin
+        _serializable_hash
+      ensure
+        Thread.current[:jsonapi_serializer] = nil
+      end
     end
     alias to_hash serializable_hash
 
