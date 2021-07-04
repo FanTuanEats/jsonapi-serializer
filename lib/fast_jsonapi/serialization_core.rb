@@ -81,19 +81,20 @@ module FastJsonapi
           name_space = cache_opts.delete(:namespace)
           cache_key = generate_cache_key(record, name_space)
           klass = self
+          query_id = SecureRandom.uuid
           fetch_query = {
+            query_id: query_id,
             cache_key: cache_key,
             cache_opts: cache_opts,
             record: record,
             klass: klass,
             params: params
           }
-          query_key = SecureRandom.uuid
-          #Thread.current[:jsonapi_serializer] ||= {}
-          #Thread.current[:jsonapi_serializer][query_key] = fetch_query
+          Thread.current[:jsonapi_serializer] ||= {}
+          Thread.current[:jsonapi_serializer][fetch_query] = fetch_query
 
-          BatchLoader.for(fetch_query).batch(replace_methods: false) do |batch_params, loader|
-            #batch_params = Thread.current[:jsonapi_serializer].fetch_values(*query_keys)
+          BatchLoader.for(query_id).batch(replace_methods: false) do |query_ids, loader|
+            batch_params = Thread.current[:jsonapi_serializer].fetch_values(*query_ids)
             cache_keys = batch_params.map { |h| h[:cache_key] }
             # load the cached value from cache store
             cache_hits = cache_store_instance.read_multi(*cache_keys)
@@ -153,7 +154,7 @@ module FastJsonapi
                 record_hash = record_hashes_by_cache_key[b_param[:cache_key]]
                 # evaluate live meta attribute since it's time sensitive
                 record_hash[:meta] = b_param[:klass].meta_hash(b_param[:record], b_param[:params]) if b_param[:klass].meta_to_serialize.present?
-                loader.call(b_param, record_hash)
+                loader.call(b_param[:query_id], record_hash)
               end
             end
           end
