@@ -92,6 +92,9 @@ module FastJsonapi
           Thread.current[:jsonapi_serializer][cache_key] = fetch_query
 
           BatchLoader.for(cache_key).batch(replace_methods: false) do |cache_keys, loader|
+            # load the fetch_queries(batch_params) from thread local variable
+            # because the batchloader use batch item(cache_key in this case) as a hash key
+            # which will cause performance issue when batch item getting huge
             batch_params = Thread.current[:jsonapi_serializer].fetch_values(*cache_keys)
             # load the cached value from cache store
             cache_hits = cache_store_instance.read_multi(*cache_keys)

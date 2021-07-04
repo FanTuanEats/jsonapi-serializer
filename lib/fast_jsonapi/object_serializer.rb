@@ -39,6 +39,9 @@ module FastJsonapi
       else
         hash_for_one_record
       end
+      # hacky way to clean the cached query key
+      # TODO: remove or replace it after refactor the batchloader
+      Thread.current[:json_serializer] = nil
       result
     end
     alias to_hash serializable_hash
