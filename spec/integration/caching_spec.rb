@@ -14,34 +14,34 @@ RSpec.describe JSONAPI::Serializer do
     let(:cache_store) { Cached::ActorSerializer.cache_store_instance }
     it do
       cache_store.clear
-      expect(cache_store.delete("test-#{actor.cache_key}")).to be(false)
+      expect(cache_store.delete("j16r-test-#{actor.cache_key}")).to be(false)
       expect(cache_store).to receive(:read_multi).once.and_call_original
       expect(cache_store).to receive(:write_multi).once.and_call_original
 
-      Cached::ActorSerializer.new(
+      JSON.dump(Cached::ActorSerializer.new(
         [actor, actor], include: ['played_movies', 'played_movies.owner']
-      ).serializable_hash
+      ).serializable_hash)
 
-      expect(cache_store.delete("test-#{actor.cache_key}")).to be(true)
-      expect(cache_store.delete("test-#{actor.movies[0].cache_key}")).to be(true)
-      expect(cache_store.delete("test-#{actor.movies[0].owner.cache_key}")).to be(false)
+      expect(cache_store.delete("j16r-test-#{actor.cache_key}")).to be(true)
+      expect(cache_store.delete("j16r-test-#{actor.movies[0].cache_key}")).to be(true)
+      expect(cache_store.delete("j16r-test-#{actor.movies[0].owner.cache_key}")).to be(false)
     end
 
     context 'with params determined namespace' do
       let(:cache_store) { Cached::WithParamNamespaceActorSerializer.cache_store_instance }
       it do
         cache_store.clear
-        expect(cache_store.delete("male-#{actor.cache_key}")).to be(false)
+        expect(cache_store.delete("j16r-male-#{actor.cache_key}")).to be(false)
 
-        Cached::WithParamNamespaceActorSerializer.new(
+        JSON.dump(Cached::WithParamNamespaceActorSerializer.new(
           [actor, actor],
           include: ['played_movies', 'played_movies.owner'],
           params: { actor_gender: :male }
-        ).serializable_hash
+        ).serializable_hash)
 
-        expect(cache_store.delete("male-#{actor.cache_key}")).to be(true)
-        expect(cache_store.delete("test-#{actor.movies[0].cache_key}")).to be(true)
-        expect(cache_store.delete("test-#{actor.movies[0].owner.cache_key}")).to be(false)
+        expect(cache_store.delete("j16r-male-#{actor.cache_key}")).to be(true)
+        expect(cache_store.delete("j16r-test-#{actor.movies[0].cache_key}")).to be(true)
+        expect(cache_store.delete("j16r-test-#{actor.movies[0].owner.cache_key}")).to be(false)
       end
     end
 

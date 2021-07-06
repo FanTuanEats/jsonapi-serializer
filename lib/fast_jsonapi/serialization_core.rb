@@ -3,7 +3,6 @@
 require 'active_support/concern'
 require 'digest/sha1'
 require 'batch-loader'
-require 'securerandom'
 
 module FastJsonapi
   MandatoryField = Class.new(StandardError)
@@ -78,12 +77,11 @@ module FastJsonapi
           cache_opts = record_cache_options(record, cache_store_options, fieldset, includes_list, params)
           name_space = cache_opts.delete(:namespace)
           cache_key = generate_cache_key(record, name_space)
-          klass = self
           fetch_query = {
             cache_key: cache_key,
             cache_opts: cache_opts,
             record: record,
-            klass: klass,
+            klass: self,
             params: params
           }
           Thread.current[:jsonapi_serializer] ||= {}
@@ -109,8 +107,6 @@ module FastJsonapi
             uncached_by_opts = batch_params
               .reject { |h| cache_hits[h[:cache_key]] }
               .group_by { |h| h[:cache_opts] }
-
-            Rails.logger.info('serializer_cache_stats', cache_hits: cache_hits.size, cache_miss: cache_keys.size - cache_hits.size)
 
             uncached_by_opts.transform_values! do |arr|
               arr.each_with_object({}) do |b_param, record_hashes_by_cache_key|
@@ -186,7 +182,7 @@ module FastJsonapi
           options[:namespace] = FastJsonapi.call_proc(options[:namespace], record, params)
         end
 
-        options[:namespace].prefix('j16r-') if options[:namespace]&.start_with?('j16r-')
+        options[:namespace] = "j16r-#{options[:namespace]}" unless options[:namespace]&.start_with?('j16r-')
         options
 
         # temp disable fieldset support to minimum change scope
