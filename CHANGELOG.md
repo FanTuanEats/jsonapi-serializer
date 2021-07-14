@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - ...
 
+## [2.3.1] - 2021-07-14
+- Use `#cache_key_with_version` instead of `#cache_key`
+
 ## [2.3.0] - 2021-06-05
-- optimize the cache performance by batch load the cache
-- support proc on cache_options namespace
-- cache_options namespace merged into cache key
-- temp disable fieldset support, expect to bring back that in next version
+- Optimize the cache performance by batch load the cache
+- Support proc on cache_options namespace
+- Add cache_options namespace merged into cache key
+- Temporarily disable fieldset support, expect to bring back that in next version
 
 ## [2.2.0] - 2021-03-11
 
