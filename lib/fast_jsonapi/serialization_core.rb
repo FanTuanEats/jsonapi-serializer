@@ -87,7 +87,8 @@ module FastJsonapi
             cache_opts: cache_opts,
             record: record,
             klass: self,
-            params: params
+            params: params,
+            fieldset: fieldset
           }
           Thread.current[:jsonapi_serializer] ||= {}
           Thread.current[:jsonapi_serializer][cache_key] = fetch_query
@@ -116,8 +117,8 @@ module FastJsonapi
             uncached_by_opts.transform_values! do |arr|
               arr.each_with_object({}) do |b_param, record_hashes_by_cache_key|
                 record_hash = b_param[:klass].id_hash(b_param[:klass].id_from_record(b_param[:record], b_param[:params]), b_param[:klass].record_type, true)
-                record_hash[:attributes] = b_param[:klass].attributes_hash(b_param[:record], fieldset, b_param[:params]) if b_param[:klass].attributes_to_serialize.present?
-                record_hash[:relationships] = b_param[:klass].relationships_hash(b_param[:record], nil, fieldset, includes_list, b_param[:params]) if b_param[:klass].relationships_to_serialize.present?
+                record_hash[:attributes] = b_param[:klass].attributes_hash(b_param[:record], b_param[:fieldset], b_param[:params]) if b_param[:klass].attributes_to_serialize.present?
+                record_hash[:relationships] = b_param[:klass].relationships_hash(b_param[:record], nil, b_param[:fieldset], includes_list, b_param[:params]) if b_param[:klass].relationships_to_serialize.present?
                 record_hash[:links] = b_param[:klass].links_hash(b_param[:record], b_param[:params]) if b_param[:klass].data_links.present?
                 record_hashes_by_cache_key[b_param[:cache_key]] = record_hash
               end
@@ -188,22 +189,17 @@ module FastJsonapi
         end
 
         options[:namespace] = "j16r-#{options[:namespace]}" unless options[:namespace]&.start_with?('j16r-')
+
+        return options unless fieldset
+        fieldset_key = fieldset.join('_')
+        # Use a fixed-length fieldset key if the current length is more than
+        # the length of a SHA1 digest
+        if fieldset_key.length > 40
+          fieldset_key = Digest::SHA1.hexdigest(fieldset_key)
+        end
+
+        options[:namespace] = "#{options[:namespace]}-fieldset:#{fieldset_key}"
         options
-
-        # temp disable fieldset support to minimum change scope
-        # TODO: add fieldset support back and verify behavior
-        # return options unless fieldset
-
-        # fieldset_key = fieldset.join('_')
-
-        # # Use a fixed-length fieldset key if the current length is more than
-        # # the length of a SHA1 digest
-        # if fieldset_key.length > 40
-        #   fieldset_key = Digest::SHA1.hexdigest(fieldset_key)
-        # end
-
-        # options[:namespace] = "#{options[:namespace]}-fieldset:#{fieldset_key}"
-        # options
       end
       # rubocop:enable Lint/UnusedMethodArgument
 

@@ -15,6 +15,7 @@ class User
   def cache_key
     "#{uid}_cache_key"
   end
+  alias_method :cache_key_with_version, :cache_key
 end
 
 class NoSerializerUser < User

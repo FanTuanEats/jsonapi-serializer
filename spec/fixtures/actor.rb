@@ -74,6 +74,7 @@ module Cached
       namespace: 'test'
     )
 
+    # fake attribute for test nested batch loader call
     attribute :nest_batch do |object|
       BatchLoader.for(object).batch(replace_methods: false) do |objects, loader|
         objects.each do |obj|

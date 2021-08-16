@@ -25,6 +25,7 @@ class Movie
   def cache_key
     "#{id}_cache_key"
   end
+  alias_method :cache_key_with_version, :cache_key
 
   def url(obj = nil)
     @url ||= FFaker::Internet.http_url

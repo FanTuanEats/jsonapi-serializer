@@ -56,27 +56,25 @@ RSpec.describe JSONAPI::Serializer do
     end
   end
 
-  # disable those tests since fieldset support is dropped
   describe 'with caching and different fieldsets' do
+    let(:cache_store) { Cached::ActorSerializer.cache_store_instance }
     context 'when fieldset is provided' do
-      xit 'includes the fieldset in the namespace' do
-        expect(cache_store.delete(actor, namespace: 'test')).to be(false)
+      it 'includes the fieldset in the namespace' do
+        expect(cache_store.delete(actor)).to be(false)
 
         Cached::ActorSerializer.new(
           [actor], fields: { actor: %i[first_name] }
-        ).serializable_hash
+        ).serializable_hash.as_json
 
         # Expect cached keys to match the passed fieldset
-        expect(cache_store.read(actor, namespace: 'test-fieldset:first_name')[:attributes].keys).to eq(%i[first_name])
+        expect(cache_store.read("j16r-test-fieldset:first_name-#{actor.cache_key}")[:attributes].keys).to eq(%i[first_name])
 
-        Cached::ActorSerializer.new(
-          [actor]
-        ).serializable_hash
+        Cached::ActorSerializer.new([actor]).serializable_hash.as_json
 
         # Expect cached keys to match all valid actor fields (no fieldset)
-        expect(cache_store.read(actor, namespace: 'test')[:attributes].keys).to eq(%i[first_name last_name email])
-        expect(cache_store.delete(actor, namespace: 'test')).to be(true)
-        expect(cache_store.delete(actor, namespace: 'test-fieldset:first_name')).to be(true)
+        expect(cache_store.read("j16r-test-#{actor.cache_key}")[:attributes].keys).to eq(%i[first_name last_name email nest_batch])
+        expect(cache_store.delete("j16r-test-#{actor.cache_key}")).to be(true)
+        expect(cache_store.delete("j16r-test-fieldset:first_name-#{actor.cache_key}")).to be(true)
       end
     end
 
@@ -84,16 +82,16 @@ RSpec.describe JSONAPI::Serializer do
       let(:actor_keys) { %i[first_name last_name more_fields yet_more_fields so_very_many_fields] }
       let(:digest_key) { Digest::SHA1.hexdigest(actor_keys.join('_')) }
 
-      xit 'includes the hashed fieldset in the namespace' do
+      it 'includes the hashed fieldset in the namespace' do
         Cached::ActorSerializer.new(
           [actor], fields: { actor: actor_keys }
-        ).serializable_hash
+        ).serializable_hash.as_json
 
-        expect(cache_store.read(actor, namespace: "test-fieldset:#{digest_key}")[:attributes].keys).to eq(
+        expect(cache_store.read("j16r-test-fieldset:#{digest_key}-#{actor.cache_key}")[:attributes].keys).to eq(
           %i[first_name last_name]
         )
 
-        expect(cache_store.delete(actor, namespace: "test-fieldset:#{digest_key}")).to be(true)
+        expect(cache_store.delete("j16r-test-fieldset:#{digest_key}-#{actor.cache_key}")).to be(true)
       end
     end
   end
